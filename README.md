@@ -1,1 +1,2 @@
 # traveling-sales-person
+The following code aims to explore an optimization route that attempts to solve the traveling sales person problem using simulated annealing algorithm. The traveling sales person problem is that given a set of cities, with known distances between them, what is the shortest round-trip route that visits all cities? The initial route is determined by a random pick of starting point and then finding nearest neighbor by greedy searching. Then, two towns are picked randomly and swapped, simulated annealing method is used to see if the swap is accepted. 
