@@ -1,0 +1,164 @@
+---
+title: "TSP"
+author: "Yue Tu"
+date: "5/7/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message= F}
+library(ggplot2)
+library(dplyr)
+```
+
+# This file is just for the exploratory purpose of the traveling sales person problem. Due to lack of time, only the output for 10 and 20 towns is presented.    
+
+## Background     
+Given a set of cities, with known distances between them, what is the shortest round-trip route that visits all cities?    
+
+## Method    
+The initial route is found by randomly pick a starting town and then finding closest neighbor by greedy searching. And the initialization step is iterated for 1k to find the best starting route. Then, two towns are picked randomly and swapped, simulated annealing method is used to see if the swap is accepted. The goal is to minimized the total distance and the "temperature" used in annealing is set as 100. The number of iteration is 100k.         
+```{r}
+dat10 = read.table("TSPdata10towns.txt")
+dat20 = read.table("TSPdata20towns.txt")
+dat50 = read.table("TSPdata50towns.txt")
+dat100 = read.table("TSPdata100towns.txt")
+```
+
+## Result      
+
+### For 10 towns    
+Visualization of the 10 towns      
+```{r}
+ggplot(dat10, aes(V1,V2)) + geom_point()
+```
+
+```{r}
+distance_mat1 <- as.matrix(stats::dist(select(dat10, V1, V2), diag = TRUE, upper = TRUE))
+
+nodes = row.names(distance_mat1) %>% as.numeric()
+
+tot_dis = function(distance_mat,nodeseq){
+  d = 0
+  for (i in 1:nrow(distance_mat)){
+    d = d + distance_mat[nodeseq[i],nodeseq[i+1]]
+  }
+  return(d)
+}
+
+
+# initialization by closest-neighbour
+initalsol = function(distance_mat){
+  nodes = row.names(distance_mat) %>% as.numeric()
+  cur_node = sample(1:length(nodes),1)
+  nodeseq = c(cur_node)
+  
+  freenodes = nodes[!(nodes %in% nodeseq)]
+  while (length(freenodes) != 1) {
+    reduced_dist = distance_mat[cur_node,freenodes]
+    next_node = names(which.min(reduced_dist)) %>% as.numeric
+    nodeseq = c(nodeseq,next_node)
+    cur_node = next_node
+    freenodes =  nodes[!(nodes %in% nodeseq)]
+  }
+  
+  nodeseq = c(nodeseq,freenodes)
+  nodeseqwithorg = c(nodeseq,nodeseq[1])
+  totaldistance = tot_dis(distance_mat, nodeseqwithorg)
+  return(list(totaldistance, nodeseqwithorg))
+}
+
+
+tsp = function(iteration, initialnodeseq, initialdis, tau, distance_mat, nodes){
+    curseq = initialnodeseq
+    curdis = initialdis
+  for(j in 1:iteration){
+      change = sample(nodes, 2)
+      tempseq = curseq
+      tempseq[change] = curseq[c(change[2],change[1])]
+      tempseq[length(nodes)+1] = tempseq[1]
+      tempdis = tot_dis(distance_mat,tempseq)
+      delta = tempdis - curdis
+      if(delta <= 0){
+        curseq = tempseq
+        curdis = tempdis
+      } 
+      else{
+        if(runif(1) < exp(-delta/tau)){
+          curseq = tempseq
+          curdis = tempdis
+
+        }
+    }
+  }
+  return(list(curdis,curseq))
+}
+
+set.seed(5)
+
+curdis = 1000
+for(i in 1:1000){
+  inital = initalsol(distance_mat1)
+  if(inital[[1]] <= curdis){
+   optinital = inital
+   curdis = optinital[[1]]
+  }
+}
+
+output = tsp(100000,optinital[[2]],optinital[[1]],100,distance_mat1,nodes)
+
+```
+Visualization of the 10 towns with route         
+```{r}
+route = output[[2]]
+arrowdat = matrix(nrow = 10, ncol = 4)
+for (i in nodes){
+  arrowdat[i,] = c(dat10[route[i],], dat10[route[i+1],]) %>% as.numeric()
+}
+arrowdat = arrowdat %>% as.data.frame()
+ggplot() + geom_point(data = dat10, aes(V1,V2)) +
+  geom_segment(data =  arrowdat,aes( x = V1, y = V2, xend = V3, yend = V4), arrow = arrow(length = unit(0.03, "npc"))) + geom_point(data = dat10[route[1],], aes(V1,V2,color = "red"))
+```
+The final route sequence s `r route` and the final total distance is `r round(output[[1]],3)` for 10 towns. The red dot is the starting town.                
+
+### For 20 towns  
+Visualization of the 20 towns     
+```{r}
+ggplot(dat20, aes(V1,V2)) + geom_point()
+```
+
+```{r}
+
+distance_mat2 <- as.matrix(stats::dist(select(dat20, V1, V2), diag = TRUE, upper = TRUE))
+
+nodes2 = row.names(distance_mat2) %>% as.numeric()
+
+set.seed(5)
+
+curdis = 1000
+for(i in 1:1000){
+  inital2 = initalsol(distance_mat2)
+  if(inital2[[1]] <= curdis){
+   optinital2 = inital2
+   curdis = optinital2[[1]]
+  }
+}
+
+output2 = tsp(100000,optinital2[[2]],optinital2[[1]],100,distance_mat2,nodes2)
+```
+        
+Visualization of the 20 towns with route         
+```{r}
+route2 = output2[[2]]
+arrowdat2 = matrix(nrow = length(nodes2), ncol = 4)
+for (i in 1:length(nodes2)){
+  arrowdat2[i,] = c(dat20[route2[i],], dat20[route2[i+1],]) %>% as.numeric()
+}
+arrowdat2 = arrowdat2 %>% as.data.frame()
+ggplot() + geom_point(data = dat20, aes(V1,V2)) +
+  geom_segment(data =  arrowdat2,aes( x = V1, y = V2, xend = V3, yend = V4), arrow = arrow(length = unit(0.03, "npc"))) + geom_point(data = dat20[route2[1],], aes(V1,V2,color = "red"))
+```
+The final route sequence s `r route2` and the final total distance is `r round(output2[[1]],3)` for 20 towns. The red dot is the starting town.          
